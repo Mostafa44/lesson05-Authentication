@@ -1,24 +1,29 @@
-import { CustomAuthorizerEvent, CustomAuthorizerResult } from 'aws-lambda'
+import { CustomAuthorizerEvent, CustomAuthorizerHandler, CustomAuthorizerResult, } from 'aws-lambda'
 import 'source-map-support/register'
-import * as middy from 'middy'
-import { secretsManager } from 'middy/middlewares'
+//import * as middy from 'middy'
+//import { secretsManager } from 'middy/middlewares'
 
-import { verify } from 'jsonwebtoken'
-import { JwtToken } from '../../auth/JwtToken'
+// import { verify } from 'jsonwebtoken'
+// import { JwtToken } from '../../auth/JwtToken'
 
-const secretId = process.env.AUTH_0_SECRET_ID
-const secretField = process.env.AUTH_0_SECRET_FIELD
+// const secretId = process.env.AUTH_0_SECRET_ID
+// const secretField = process.env.AUTH_0_SECRET_FIELD
 
-export const handler = middy(async (event: CustomAuthorizerEvent, context): Promise<CustomAuthorizerResult> => {
+//export const handler = middy(async (event: CustomAuthorizerEvent, context): Promise<CustomAuthorizerResult> => {
+export const handler: CustomAuthorizerHandler = async (event: CustomAuthorizerEvent): Promise<CustomAuthorizerResult> => {
+
+
   try {
-    const decodedToken = verifyToken(
+    //const decodedToken = verifyToken(
+    verifyToken(
       event.authorizationToken,
-      context.AUTH0_SECRET[secretField]
+      //  context.AUTH0_SECRET[secretField]
     )
-    console.log('User was authorized', decodedToken)
+    console.log('User was authorized')
 
     return {
-      principalId: decodedToken.sub,
+      //principalId: decodedToken.sub,
+      principalId: 'user',
       policyDocument: {
         Version: '2012-10-17',
         Statement: [
@@ -47,9 +52,10 @@ export const handler = middy(async (event: CustomAuthorizerEvent, context): Prom
       }
     }
   }
-})
-
-function verifyToken(authHeader: string, secret: string): JwtToken {
+  //})
+}
+//function verifyToken(authHeader: string, secret: string): JwtToken {
+function verifyToken(authHeader: string) {
   if (!authHeader)
     throw new Error('No authentication header')
 
@@ -58,18 +64,22 @@ function verifyToken(authHeader: string, secret: string): JwtToken {
 
   const split = authHeader.split(' ')
   const token = split[1]
+  console.log("token is ", token);
+  if (token !== '123') {
+    throw new Error('Invalid token');
+  }
 
-  return verify(token, secret) as JwtToken
+  // return verify(token, secret) as JwtToken
 }
 
-handler.use(
-  secretsManager({
-    cache: true,
-    cacheExpiryInMillis: 60000,
-    // Throw an error if can't read the secret
-    throwOnFailedCall: true,
-    secrets: {
-      AUTH0_SECRET: secretId
-    }
-  })
-)
+// handler.use(
+//   secretsManager({
+//     cache: true,
+//     cacheExpiryInMillis: 60000,
+//     // Throw an error if can't read the secret
+//     throwOnFailedCall: true,
+//     secrets: {
+//       AUTH0_SECRET: secretId
+//     }
+//   })
+// )
