@@ -1,29 +1,35 @@
 import { CustomAuthorizerEvent, CustomAuthorizerHandler, CustomAuthorizerResult, } from 'aws-lambda'
 import 'source-map-support/register'
+import * as AWS from 'aws-sdk';
 //import * as middy from 'middy'
 //import { secretsManager } from 'middy/middlewares'
 
-// import { verify } from 'jsonwebtoken'
-// import { JwtToken } from '../../auth/JwtToken'
+import { verify } from 'jsonwebtoken'
+import { JwtToken } from '../../auth/JwtToken'
 
-// const secretId = process.env.AUTH_0_SECRET_ID
-// const secretField = process.env.AUTH_0_SECRET_FIELD
+const secretId = process.env.AUTH_0_SECRET_ID
+const secretField = process.env.AUTH_0_SECRET_FIELD
+const client = new AWS.SecretsManager();
+
+
+//Cache secrete if lambda is reused
+let cachedSecret: string;
 
 //export const handler = middy(async (event: CustomAuthorizerEvent, context): Promise<CustomAuthorizerResult> => {
 export const handler: CustomAuthorizerHandler = async (event: CustomAuthorizerEvent): Promise<CustomAuthorizerResult> => {
 
 
   try {
-    //const decodedToken = verifyToken(
-    verifyToken(
-      event.authorizationToken,
-      //  context.AUTH0_SECRET[secretField]
-    )
-    console.log('User was authorized')
+    const decodedToken = await verifyToken(event.authorizationToken);
+    // verifyToken(
+    // event.authorizationToken,
+    //  context.AUTH0_SECRET[secretField]
+    //)
+    console.log('User was authorized', decodedToken);
 
     return {
-      //principalId: decodedToken.sub,
-      principalId: 'user',
+      principalId: decodedToken.sub,
+      //principalId: 'user',
       policyDocument: {
         Version: '2012-10-17',
         Statement: [
@@ -55,7 +61,7 @@ export const handler: CustomAuthorizerHandler = async (event: CustomAuthorizerEv
   //})
 }
 //function verifyToken(authHeader: string, secret: string): JwtToken {
-function verifyToken(authHeader: string) {
+async function verifyToken(authHeader: string): Promise<JwtToken> {
   if (!authHeader)
     throw new Error('No authentication header')
 
@@ -65,13 +71,19 @@ function verifyToken(authHeader: string) {
   const split = authHeader.split(' ')
   const token = split[1]
   console.log("token is ", token);
-  if (token !== '123') {
-    throw new Error('Invalid token');
-  }
-
-  // return verify(token, secret) as JwtToken
+  // if (token !== '123') {
+  //   throw new Error('Invalid token');
+  // }
+  const secretObject = await getSecret();
+  const secret = secretObject[secretField];
+  return verify(token, secret) as JwtToken
 }
-
+async function getSecret() {
+  if (cachedSecret) return cachedSecret;
+  const data = await client.getSecretValue({ SecretId: secretId }).promise();
+  cachedSecret = data.SecretString;
+  return JSON.parse(cachedSecret);
+}
 // handler.use(
 //   secretsManager({
 //     cache: true,
